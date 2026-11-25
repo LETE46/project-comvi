@@ -32,3 +32,8 @@ export type BillQuery = {
   from?: string;
   to?: string;
 };
+
+// ค่าตั้งของผู้ใช้ (เก็บฝั่ง backend ผูกกับ userId)
+export type Settings = {
+  monthlyBudget: number | null; // null = ยังไม่ตั้งงบ
+};

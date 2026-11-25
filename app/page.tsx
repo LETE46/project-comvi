@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useLiff } from "@/components/LiffProvider";
-import { useBills, useCategories } from "@/lib/hooks";
+import { useBills, useCategories, useSettings } from "@/lib/hooks";
 import { getRange, periodLabel, shiftAnchor, type Period } from "@/lib/period";
 import { expenseBars, summarizeBills } from "@/lib/stats";
 import { useToday } from "@/lib/useToday";
 import CategoryDonut from "@/components/CategoryDonut";
-import { formatBaht } from "@/lib/format";
+import { formatBaht, toInputDateTime } from "@/lib/format";
 import DayBillList from "@/components/DayBillList";
 import ExpenseBars from "@/components/ExpenseBars";
+import Link from "next/link";
 
 const tabs: { value: Period; label: string }[] = [
   { value: "day", label: "วัน" },
@@ -32,6 +33,7 @@ export default function StatsPage() {
   // ยังไม่รู้วันนี้ (query เป็น null) ก็ยังไม่ขอข้อมูล
   const bills = useBills(query ?? {}, query !== null);
   const categories = useCategories();
+  const settings = useSettings();
 
   if (loading) return <p className="p-4">กำลังโหลด...</p>;
   if (error) return <p className="p-4 text-red-500">Error: {error}</p>;
@@ -41,6 +43,18 @@ export default function StatsPage() {
 
   const bars = bills.data && period !== "day" ? expenseBars(bills.data, period, anchor) : [];
 
+  const budget = settings.data?.monthlyBudget ?? null;
+
+  // เฉลี่ยต่อเดือน: หารด้วยจำนวนเดือนที่มีรายจ่ายจริง ไม่ใช่ 12 เสมอ
+  const monthsWithBills = new Set(
+  (bills.data ?? [])
+    .filter((b) => b.type === "expense")
+    .map((b) => toInputDateTime(b.billDate).slice(0, 7))
+  ).size;
+  const topCategoryName = summary?.byCategory[0]
+  ? categories.data?.find((c) => c.id === summary.byCategory[0].categoryId)?.name
+  : undefined;
+  
   function move(delta: number) {
     setAnchorOverride(shiftAnchor(period, anchor!, delta));
   }
@@ -49,7 +63,7 @@ export default function StatsPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">สถิติ</h1>
 
-      {/* แท็บเลือกช่วงเวลา */}
+      {/* แท็บเลือกเวลา */}
       <div className="grid grid-cols-4 gap-1 rounded-xl bg-gray-100 p-1">
         {tabs.map((t) => (
           <button
@@ -66,7 +80,7 @@ export default function StatsPage() {
         ))}
       </div>
 
-      {/* ลูกศรเลื่อนช่วง (โหมดทั้งหมดไม่ต้องมี) */}
+      {/* ลูกศรเลื่อน  */}
       {period !== "all" ? (
         <div className="flex items-center justify-between">
           <button
@@ -86,10 +100,10 @@ export default function StatsPage() {
           </button>
         </div>
       ) : (
-        <p className="text-center font-bold">ทั้งหมด</p>
+        <p className="text-center font-bold">ทั้งหมด</p> //โหมดทั้งหมดไม่ต้องมี
       )}
 
-      {/* ตัวเลขรวมแบบง่าย (ก้าว 6.3 จะทำเป็นการ์ดสวย) */}
+      {/* ตัวเลขรวม */}
       {bills.isLoading || categories.isLoading || !summary ? (
         <p className="text-gray-500">กำลังโหลดข้อมูล...</p>
       ) : summary.count === 0 ? (
@@ -98,35 +112,66 @@ export default function StatsPage() {
         </p>
       ) : (
         <>
-          {/* เหลือเก็บ */}
-          <div className="rounded-xl bg-gray-100 p-4">
-            <p className="text-sm text-gray-600">เหลือเก็บ</p>
-            <p
-              className={`text-3xl font-bold ${
-                summary.balance < 0 ? "text-red-700" : "text-emerald-700"
-              }`}
-            >
-              {formatBaht(summary.balance)}
-            </p>
-          </div>
-
-          {/* รายจ่าย / รายรับ */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border-2 border-red-200 bg-red-50 p-3">
-              <p className="text-sm text-gray-600">รายจ่าย</p>
-              <p className="text-lg font-bold text-red-700">
-                {formatBaht(summary.expense)}
+          {/* การ์ดใหญ่: เดือนที่ตั้งงบ = เหลืองบ, นอกนั้น = รายจ่ายรวม */}
+          {period === "month" && budget != null ? (
+            <div className="rounded-xl bg-gray-100 p-4">
+              <p className="text-sm text-gray-600">เหลืองบ</p>
+              <p
+                className={`text-3xl font-bold ${
+                  budget - summary.expense < 0 ? "text-red-700" : "text-emerald-700"
+                }`}
+              >
+                {formatBaht(budget - summary.expense)}
               </p>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-300">
+                <div
+                  className={`h-full ${summary.expense > budget ? "bg-red-600" : "bg-sky-600"}`}
+                  style={{ width: `${Math.min(100, (summary.expense / budget) * 100)}%` }}
+                />
+              </div>
             </div>
-            <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3">
-              <p className="text-sm text-gray-600">รายรับ</p>
-              <p className="text-lg font-bold text-emerald-700">
-                {formatBaht(summary.income)}
-              </p>
+          ) : (
+            <div className="rounded-xl bg-gray-100 p-4">
+              <p className="text-sm text-gray-600">รายจ่ายรวม</p>
+              <p className="text-3xl font-bold text-red-700">{formatBaht(summary.expense)}</p>
             </div>
-          </div>
+          )}
 
-          {/* โดนัทตามหมวด */}
+          {/* การ์ดเล็ก 2 ใบ (โหมดวันไม่แสดง) */}
+          {period === "month" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border-2 border-red-200 bg-red-50 p-3">
+                <p className="text-sm text-gray-600">รายจ่าย</p>
+                <p className="text-lg font-bold text-red-700">{formatBaht(summary.expense)}</p>
+              </div>
+              <div className="rounded-xl border-2 border-sky-200 bg-sky-50 p-3">
+                <p className="text-sm text-gray-600">งบที่ตั้งไว้</p>
+                {budget != null ? (
+                  <p className="text-lg font-bold text-sky-700">{formatBaht(budget)}</p>
+                ) : (
+                  <Link href="/settings" className="text-sm font-bold text-sky-700 underline">
+                    ตั้งงบรายเดือน
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+          {(period === "year" || period === "all") && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border-2 border-red-200 bg-red-50 p-3">
+                <p className="text-sm text-gray-600">เฉลี่ยต่อเดือน</p>
+                <p className="text-lg font-bold text-red-700">
+                  {formatBaht(monthsWithBills > 0 ? summary.expense / monthsWithBills : 0)}
+                </p>
+              </div>
+              <div className="rounded-xl border-2 border-sky-200 bg-sky-50 p-3">
+                <p className="text-sm text-gray-600">ใช้มากสุด</p>
+                <p className="text-lg font-bold text-sky-700">{topCategoryName ?? "-"}</p>
+              </div>
+            </div>
+          )}
+
+          {/* กราฟโดนัทตามหมวด */}
           <section className="space-y-2 rounded-xl border p-4">
             <h2 className="font-bold">รายจ่ายตามหมวด</h2>
             <CategoryDonut

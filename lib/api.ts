@@ -1,5 +1,5 @@
 import { seedBills, seedCategories } from "@/lib/seed";
-import type { Bill, BillQuery, BillUpdate, Category } from "@/lib/types";
+import type { Bill, BillQuery, BillUpdate, Category, Settings } from "@/lib/types";
 
 // "ฐานข้อมูลปลอม" ทำสำเนาจากข้อมูลเริ่มต้นมาให้แก้ได้
 let bills: Bill[] = structuredClone(seedBills);
@@ -64,4 +64,21 @@ export async function deleteBill(id: string): Promise<void> {
 export async function getCategories(): Promise<Category[]> {
   await delay(100);
   return categories.map((c) => ({ ...c }));
+}
+
+// ค่าตั้งของผู้ใช้ (ของปลอม: รีเฟรชหน้าแล้วหาย backend จริงต้องเก็บถาวร)
+let settings: Settings = { monthlyBudget: null };
+
+export async function getSettings(): Promise<Settings> {
+  await delay(100);
+  return { ...settings };
+}
+
+export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
+  await delay();
+  if (patch.monthlyBudget != null && !(patch.monthlyBudget > 0)) {
+    throw new Error("งบต้องมากกว่า 0");
+  }
+  settings = { ...settings, ...patch };
+  return { ...settings };
 }
