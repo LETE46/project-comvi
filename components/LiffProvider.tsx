@@ -38,6 +38,22 @@ export default function LiffProvider({
 
   useEffect(() => {
     const init = async () => {
+
+        // โหมดพัฒนา: เปิดบน localhost ให้ใช้โปรไฟล์ปลอม ไม่ต้อง login LINE
+        if (window.location.hostname === "localhost") {
+          setState({
+            liff: null,
+            profile: {
+              userId: "dev-user",
+              displayName: "ผู้ทดสอบ (localhost)",
+            },
+            idToken: null,
+            error: null,
+            loading: false,
+          });
+          return;
+        }
+
       try {
         const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
         if (!liffId) {
@@ -51,6 +67,7 @@ export default function LiffProvider({
           liff.login(); // redirect ไปหน้า login แล้วกลับมา
           return;
         }
+
 
         const profile = await liff.getProfile();
         const idToken = liff.getIDToken();

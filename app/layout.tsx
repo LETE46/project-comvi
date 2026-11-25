@@ -1,6 +1,8 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import LiffProvider from "@/components/LiffProvider";
+import Providers from "@/components/Providers";
+import BottomNav from "@/components/BottomNav";
 
 export const metadata: Metadata = {
   title: "Bill Saving",
@@ -15,7 +17,14 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body>
-        <LiffProvider>{children}</LiffProvider>
+        <Providers>
+          <LiffProvider>
+            <div className="mx-auto min-h-screen max-w-md px-4 pb-24 pt-4">
+              {children}
+            </div>
+            <BottomNav />
+          </LiffProvider>
+        </Providers>
       </body>
     </html>
   );
