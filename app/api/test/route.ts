@@ -1,4 +1,4 @@
-export async function GET(res:Response) {
+export async function GET() {
 
     return Response.json('Hello World')
 }
