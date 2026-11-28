@@ -83,12 +83,8 @@ function BillForm({
   if (note !== bill.note) patch.note = note;
 
   const dirty = Object.keys(patch).length > 0;
-  const needsReview = bill.status === "needs_review";
-
   function save() {
-    // กดบันทึกบนบิลที่รอตรวจสอบ = ผู้ใช้ตรวจแล้ว ให้ยืนยันไปด้วย
-    const body: BillUpdate = needsReview ? { ...patch, status: "confirmed" } : patch;
-    update.mutate({ id: bill.id, patch: body });
+    update.mutate({ id: bill.id, patch });
   }
 
   return (
@@ -110,12 +106,6 @@ function BillForm({
           </span>
         )}
       </button>
-
-      {needsReview && (
-        <p className="rounded-xl bg-amber-100 p-3 text-sm text-amber-900">
-          ระบบอ่านสลีปนี้อัตโนมัติ กรุณาตรวจข้อมูลให้ถูกต้องแล้วกดยืนยัน
-        </p>
-      )}
 
       <div className="space-y-3">
         <Field label="ชื่อบิล">
@@ -173,16 +163,16 @@ function BillForm({
       </div>
 
       {update.isError && <p className="text-sm text-red-500">{update.error.message}</p>}
-      {update.isSuccess && !dirty && !needsReview && (
+      {update.isSuccess && !dirty && (
         <p className="text-sm text-emerald-600">บันทึกแล้ว ✓</p>
       )}
 
       <button
         onClick={save}
-        disabled={!valid || (!dirty && !needsReview) || update.isPending}
+        disabled={!valid || (!dirty) || update.isPending}
         className="w-full rounded-xl bg-sky-700 py-3 font-bold text-white disabled:opacity-40"
       >
-        {update.isPending ? "กำลังบันทึก..." : needsReview ? "บันทึกและยืนยันบิล" : "บันทึก"}
+        {update.isPending ? "กำลังบันทึก..." : "บันทึก"}
       </button>
 
       {/* ข้อมูลที่แก้ไม่ได้ */}

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import type { Liff } from "@line/liff";
+import { setAuth } from "@/lib/auth";
 
 type Profile = {
   userId: string;
@@ -41,6 +42,7 @@ export default function LiffProvider({
 
         // โหมดพัฒนา: เปิดบน localhost ให้ใช้โปรไฟล์ปลอม ไม่ต้อง login LINE
         if (window.location.hostname === "localhost") {
+          setAuth(null);
           setState({
             liff: null,
             profile: {
@@ -72,8 +74,14 @@ export default function LiffProvider({
         const profile = await liff.getProfile();
         const idToken = liff.getIDToken();
 
+        // token หมดอายุ (backend ตอบ 401) -> ล็อกเอาต์แล้ว login ใหม่
+        setAuth(idToken, () => {
+          liff.logout();
+          liff.login({ redirectUri: window.location.href });
+        });
         setState({ liff, profile, idToken, error: null, loading: false });
       } catch (e: unknown) {
+        setAuth(null); // ไม่ให้ request ที่รออยู่ค้างตลอดไป
         const message = e instanceof Error ? e.message : "LIFF init failed";
         setState((s) => ({ ...s, error: message, loading: false }));
       }

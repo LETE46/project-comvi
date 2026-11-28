@@ -60,6 +60,7 @@ export default function StatsPage() {
   }
 
   return (
+
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">สถิติ</h1>
 
@@ -90,7 +91,19 @@ export default function StatsPage() {
           >
             <ChevronLeft size={20} />
           </button>
-          <p className="font-bold">{periodLabel(period, anchor)}</p>
+
+          <div className="relative">
+            <p className="font-bold">{periodLabel(period, anchor)}</p>
+            <input
+              type="date"
+              value={anchor}
+              onChange={(e) => setAnchorOverride(e.target.value)}
+              onClick={(e) => e.currentTarget.showPicker?.()}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              aria-label="เลือกวันที่"
+            />
+          </div>
+
           <button
             onClick={() => move(1)}
             aria-label="ช่วงถัดไป"

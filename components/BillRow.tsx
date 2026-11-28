@@ -50,11 +50,6 @@ export default function BillRow({
             {isIncome ? "+" : "-"}
             {formatBaht(bill.amount)}
           </p>
-          {bill.status === "needs_review" && (
-            <span className="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-              รอตรวจสอบ
-            </span>
-          )}
         </div>
       </Link>
     </li>

@@ -1,84 +1,112 @@
-import { seedBills, seedCategories } from "@/lib/seed";
+import * as mock from "@/lib/mockApi";
+import { getIdToken, handleUnauthorized, waitForAuth } from "@/lib/auth";
 import type { Bill, BillQuery, BillUpdate, Category, Settings } from "@/lib/types";
 
-// "ฐานข้อมูลปลอม" ทำสำเนาจากข้อมูลเริ่มต้นมาให้แก้ได้
-let bills: Bill[] = structuredClone(seedBills);
-const categories: Category[] = structuredClone(seedCategories);
+// ตั้ง NEXT_PUBLIC_API_URL แล้วจะเรียก backend จริง ไม่ตั้งจะใช้ข้อมูลปลอมใน mockApi.ts
+// เช่น NEXT_PUBLIC_API_URL=https://api.example.com (ไม่ต้องมี / ท้าย)
+const BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 
-// หน่วงเวลาให้เหมือนเรียกเน็ตจริง จะได้เห็นสถานะ "กำลังโหลด"
-const delay = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  await waitForAuth();
 
-// ขอรายการบิล (กรองตามช่วงเวลาได้) เรียงใหม่ไปเก่า
-export async function getBills(query: BillQuery = {}): Promise<Bill[]> {
-  await delay();
-  const from = query.from ? Date.parse(query.from) : -Infinity;
-  const to = query.to ? Date.parse(query.to) : Infinity;
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (init.body) headers["Content-Type"] = "application/json";
 
-  return bills
-    .filter((b) => {
-      const t = Date.parse(b.billDate);
-      return t >= from && t < to;
-    })
-    .sort((a, b) => Date.parse(b.billDate) - Date.parse(a.billDate))
-    .map((b) => ({ ...b }));
-}
-
-// ขอบิลใบเดียว
-export async function getBill(id: string): Promise<Bill> {
-  await delay();
-  const bill = bills.find((b) => b.id === id);
-  if (!bill) throw new Error("ไม่พบบิลนี้");
-  return { ...bill };
-}
-
-// แก้บิล
-export async function updateBill(id: string, patch: BillUpdate): Promise<Bill> {
-  await delay();
-  const index = bills.findIndex((b) => b.id === id);
-  if (index === -1) throw new Error("ไม่พบบิลนี้");
-
-  if (patch.amount !== undefined && !(patch.amount > 0)) {
-    throw new Error("ยอดเงินต้องมากกว่า 0");
-  }
-  if (patch.title !== undefined && patch.title.trim() === "") {
-    throw new Error("ชื่อบิลต้องไม่ว่าง");
+  const token = getIdToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  } else if (process.env.NODE_ENV !== "production") {
+    // localhost ไม่มี idToken จริง: ใช้ header ทดสอบ (ต้องให้ backend รองรับเฉพาะเซิร์ฟเวอร์ทดสอบ)
+    headers["X-Dev-User"] = "dev-user";
   }
 
-  const updated: Bill = {
-    ...bills[index],
-    ...patch,
-    updatedAt: new Date().toISOString(), // backend จริงจะใส่ให้เอง
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, { ...init, headers });
+  } catch {
+    throw new Error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง");
+  }
+
+  if (res.status === 401) {
+    handleUnauthorized(); // token หมดอายุ -> login ใหม่
+    throw new Error("หมดเวลาเข้าสู่ระบบ กำลังเข้าสู่ระบบใหม่...");
+  }
+
+  if (!res.ok) {
+    // error ของ backend อาจเป็น { message } หรือ { detail } (FastAPI)
+    const body = await res.json().catch(() => null);
+    const text = body?.message ?? (typeof body?.detail === "string" ? body.detail : null);
+    throw new Error(text ?? `เกิดข้อผิดพลาด (${res.status})`);
+  }
+
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
+
+// ปรับข้อมูลดิบจาก backend ให้ตรงกับ type Bill (ช่องที่ไม่มีให้ค่าเริ่มต้น)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toBill(raw: any): Bill {
+  return {
+    id: String(raw.id),
+    type: raw.type ?? "expense",
+    title: raw.title ?? "",
+    amount: Number(raw.amount), // backend บางตัวส่ง Decimal เป็น string
+    categoryId: raw.categoryId ?? "other",
+    billDate: raw.billDate,
+    createdAt: raw.createdAt ?? raw.billDate,
+    updatedAt: raw.updatedAt ?? raw.billDate,
+    note: raw.note ?? "",
+    slipUrl: raw.slipUrl ?? "",
+    refNo: raw.refNo ?? "",
   };
-  bills[index] = updated;
-  return { ...updated };
 }
 
-// ลบบิล
-export async function deleteBill(id: string): Promise<void> {
-  await delay();
-  // backend จริงควรลบแบบซ่อน (เก็บ deletedAt) ไม่ใช่ลบแถวทิ้ง
-  bills = bills.filter((b) => b.id !== id);
+async function realGetBills(query: BillQuery = {}): Promise<Bill[]> {
+  const params = new URLSearchParams();
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
+  const qs = params.toString();
+  const rows = await request<unknown[]>(`/bills${qs ? `?${qs}` : ""}`);
+  return rows.map(toBill);
 }
 
-// ขอรายการหมวดหมู่
-export async function getCategories(): Promise<Category[]> {
-  await delay(100);
-  return categories.map((c) => ({ ...c }));
+async function realGetBill(id: string): Promise<Bill> {
+  return toBill(await request(`/bills/${encodeURIComponent(id)}`));
 }
 
-// ค่าตั้งของผู้ใช้ (ของปลอม: รีเฟรชหน้าแล้วหาย backend จริงต้องเก็บถาวร)
-let settings: Settings = { monthlyBudget: null };
-
-export async function getSettings(): Promise<Settings> {
-  await delay(100);
-  return { ...settings };
+async function realUpdateBill(id: string, patch: BillUpdate): Promise<Bill> {
+  const raw = await request(`/bills/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return toBill(raw);
 }
 
-export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
-  await delay();
-  if (patch.monthlyBudget != null && !(patch.monthlyBudget > 0)) {
-    throw new Error("งบต้องมากกว่า 0");
-  }
-  settings = { ...settings, ...patch };
-  return { ...settings };
+async function realDeleteBill(id: string): Promise<void> {
+  await request<void>(`/bills/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
+
+async function realGetCategories(): Promise<Category[]> {
+  return request<Category[]>("/categories");
+}
+
+async function realGetSettings(): Promise<Settings> {
+  const raw = await request<Partial<Settings>>("/settings");
+  return { monthlyBudget: raw.monthlyBudget ?? null };
+}
+
+async function realUpdateSettings(patch: Partial<Settings>): Promise<Settings> {
+  const raw = await request<Partial<Settings>>("/settings", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return { monthlyBudget: raw.monthlyBudget ?? null };
+}
+
+export const getBills = BASE ? realGetBills : mock.getBills;
+export const getBill = BASE ? realGetBill : mock.getBill;
+export const updateBill = BASE ? realUpdateBill : mock.updateBill;
+export const deleteBill = BASE ? realDeleteBill : mock.deleteBill;
+export const getCategories = BASE ? realGetCategories : mock.getCategories;
+export const getSettings = BASE ? realGetSettings : mock.getSettings;
+export const updateSettings = BASE ? realUpdateSettings : mock.updateSettings;

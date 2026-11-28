@@ -19,12 +19,11 @@ export type Bill = {
   note: string;
   slipUrl: string;
   refNo: string;
-  status: BillStatus;
 };
 
 // ช่องที่ผู้ใช้แก้ได้ในหน้า LIFF
 export type BillUpdate = Partial<
-  Pick<Bill, "title" | "amount" | "categoryId" | "billDate" | "note" | "status">
+  Pick<Bill, "title" | "amount" | "categoryId" | "billDate" | "note" >
 >;
 
 // ช่วงเวลาที่ใช้ดึงบิล: from รวมวันนั้น, to ไม่รวมวันนั้น

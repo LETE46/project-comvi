@@ -22,8 +22,7 @@ export const seedBills: Bill[] = [
     updatedAt: "2026-11-23T20:36:10+07:00",
     note: "",
     slipUrl: "",
-    refNo: "REF0001",
-    status: "confirmed",
+    refNo: "REF0001"
   },
   {
     id: "b2",
@@ -36,8 +35,7 @@ export const seedBills: Bill[] = [
     updatedAt: "2026-11-24T18:11:00+07:00",
     note: "",
     slipUrl: "",
-    refNo: "REF0002",
-    status: "needs_review",
+    refNo: "REF0002"
   },
   {
     id: "b3",
@@ -50,8 +48,7 @@ export const seedBills: Bill[] = [
     updatedAt: "2026-11-21T09:00:00+07:00",
     note: "ซื้อของเข้าบ้าน",
     slipUrl: "",
-    refNo: "REF0003",
-    status: "confirmed",
+    refNo: "REF0003"
   },
   {
     id: "b4",
@@ -64,8 +61,7 @@ export const seedBills: Bill[] = [
     updatedAt: "2026-11-22T08:21:00+07:00",
     note: "",
     slipUrl: "",
-    refNo: "REF0004",
-    status: "confirmed",
+    refNo: "REF0004"
   },
   {
     id: "b5",
@@ -78,8 +74,7 @@ export const seedBills: Bill[] = [
     updatedAt: "2026-11-01T09:30:00+07:00",
     note: "",
     slipUrl: "",
-    refNo: "REF0005",
-    status: "confirmed",
+    refNo: "REF0005"
   },
   {
     id: "b6",
@@ -92,8 +87,7 @@ export const seedBills: Bill[] = [
     updatedAt: "2026-10-15T09:02:00+07:00",
     note: "",
     slipUrl: "",
-    refNo: "REF0006",
-    status: "confirmed",
+    refNo: "REF0006"
   },
   {
     id: "b7",
@@ -106,8 +100,7 @@ export const seedBills: Bill[] = [
     updatedAt: "2026-10-03T16:41:00+07:00",
     note: "",
     slipUrl: "",
-    refNo: "REF0007",
-    status: "confirmed",
+    refNo: "REF0007"
   },
   {
     id: "b8",
@@ -120,7 +113,6 @@ export const seedBills: Bill[] = [
     updatedAt: "2025-12-24T12:31:00+07:00",
     note: "",
     slipUrl: "",
-    refNo: "REF0008",
-    status: "confirmed",
+    refNo: "REF0008"
   },
 ];
